@@ -46,15 +46,17 @@ export function mountExperience({ lenis, reducedMotion }) {
   draw(); restart();
   new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; if (visible) restart(); }).observe(scene);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) restart(); });
-  reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) { finishIntro(); draw(); } else restart(); });
+  reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) { finishIntro(); clearTextTimer(); if (ensType) ensType.textContent = 'you.eth'; draw(); } else restart(); });
   pause.addEventListener('click', () => {
     paused = !paused;
     root.classList.toggle('motion-paused', paused);
     pause.setAttribute('aria-pressed', String(paused));
     pause.textContent = paused ? '▷ Resume motion' : 'Ⅱ Pause motion';
-    if (!paused) restart();
+    if (paused) { clearTextTimer(); if (ensType) ensType.textContent = 'you.eth'; }
+    else restart();
   });
   scene.addEventListener('pointermove', event => {
+    if (event.pointerType === 'touch') return; // touch scroll must not tilt the card
     if (paused || reducedMotion.matches) return;
     const bounds = scene.getBoundingClientRect();
     pointerX = (event.clientX - bounds.left) / bounds.width - .5;
@@ -62,6 +64,33 @@ export function mountExperience({ lenis, reducedMotion }) {
     card.style.transform = `perspective(800px) rotateX(${-pointerY * 12}deg) rotateY(${pointerX * 16}deg) rotate(-7deg)`;
   });
   scene.addEventListener('pointerleave', () => { pointerX = pointerY = 0; card.style.transform = ''; });
+
+  // Terminal typing: the explorer's ENS name re-types for its panel's activation.
+  const ensType = document.querySelector('.recovery-ens');
+  let typeTimer = 0;
+  function typeEns() {
+    if (!ensType || paused || reducedMotion.matches) return;
+    clearTextTimer();
+    let i = 0;
+    ensType.textContent = '';
+    typeTimer = setInterval(() => {
+      ensType.textContent = 'you.eth'.slice(0, ++i);
+      if (i >= 7) clearTextTimer();
+    }, 70);
+  }
+  function clearTextTimer() { clearInterval(typeTimer); typeTimer = 0; }
+
+  // Magnetic CTAs: attract only on fine pointers, never under reduced motion.
+  const magneticButtons = [...document.querySelectorAll('.button, .text-button')];
+  const finePointer = matchMedia('(pointer: fine)');
+  magneticButtons.forEach(button => {
+    button.addEventListener('pointermove', event => {
+      if (event.pointerType !== 'mouse' || !finePointer.matches) return;
+      const bounds = button.getBoundingClientRect();
+      button.style.translate = `${((event.clientX - bounds.left) / bounds.width - .5) * 9}% ${((event.clientY - bounds.top) / bounds.height - .5) * 13}%`;
+    });
+    button.addEventListener('pointerleave', () => { button.style.translate = ''; });
+  });
 
   const reveal = new IntersectionObserver(entries => entries.forEach(entry => {
     if (!entry.isIntersecting) return;
@@ -77,6 +106,7 @@ export function mountExperience({ lenis, reducedMotion }) {
       item.tabIndex = selected ? 0 : -1;
       document.getElementById(item.getAttribute('aria-controls')).hidden = !selected;
     });
+    if (tab.id === 'step-name') typeEns();
   }
   tabs.forEach((tab, index) => {
     tab.addEventListener('click', () => selectStep(tab));
@@ -134,5 +164,5 @@ export function mountExperience({ lenis, reducedMotion }) {
   else root.classList.add('experience-ready');
 
   // Vite hot updates must not leave a second render loop or an inert page behind.
-  if (import.meta.hot) import.meta.hot.dispose(() => { finishIntro(); cancelAnimationFrame(raf); reveal.disconnect(); });
+  if (import.meta.hot) import.meta.hot.dispose(() => { finishIntro(); cancelAnimationFrame(raf); clearTextTimer(); reveal.disconnect(); });
 }
