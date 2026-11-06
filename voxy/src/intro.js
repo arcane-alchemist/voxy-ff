@@ -7,13 +7,18 @@ export function startIntro(canvas, onComplete) {
   const width = canvas.width = Math.min(1000, window.innerWidth);
   const height = canvas.height = Math.round(width * window.innerHeight / window.innerWidth);
   const cx = width / 2, cy = height / 2;
-  const textSize = Math.min(108, width * .16);
+  // A returning visitor sees their own name assemble — the intro becomes proof, not a barrier.
+  let stored = null;
+  try { stored = localStorage.getItem('voxy:ens'); } catch { /* storage unavailable */ }
+  const name = /^[a-z0-9-]{3,20}\.eth$/.test(stored ?? '') ? stored : 'you.eth';
+  // Size honors the name's length: a 24-character return visit still fits the stage.
+  const textSize = Math.min(108, width * .16, width * 1.5 / name.length);
   const mask = document.createElement('canvas');
   mask.width = width; mask.height = height;
   const ink = mask.getContext('2d');
   ink.font = `600 ${textSize}px monospace`;
   ink.textAlign = 'center'; ink.textBaseline = 'middle';
-  ink.fillText('you.eth', cx, cy);
+  ink.fillText(name, cx, cy);
   const pixels = ink.getImageData(0, 0, width, height).data;
   const particles = [];
   const spacing = Math.max(2, Math.round(width / 270));

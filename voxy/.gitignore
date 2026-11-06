@@ -2,3 +2,8 @@ node_modules/
 dist/
 .DS_Store
 .env*
+
+# Agent skills & tooling (local only, not committed)
+.agents/
+skills-lock.json
+.impeccable/
